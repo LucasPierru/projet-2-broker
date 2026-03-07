@@ -1,0 +1,29 @@
+@startuml
+skinparam shadowing false
+skinparam defaultFontName "Arial"
+skinparam ArrowColor #333333
+skinparam componentStyle rectangle
+
+title Event Processing - C&C View
+
+rectangle " " as SYS #eaf6e8 {
+	skinparam rectangle {
+		BackgroundColor #eaf6e8
+		BorderColor #88b379
+	}
+
+	component "Orders Service" as Orders
+	component "Notifications Service" as Notifications
+	queue "Event Bus" as EventBus
+}
+
+component "Client" as Client #FFFFEE
+
+Client --> Orders : <<HTTP>> Create order
+Orders --> Client : <<HTTP>> Response
+
+Orders -[#2E8B57]-> EventBus : publish order-created
+EventBus -[#2E8B57]-> Notifications : consume order-created
+
+
+@enduml
