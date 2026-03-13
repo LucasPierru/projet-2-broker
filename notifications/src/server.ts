@@ -1,7 +1,13 @@
 import { createServer } from "http";
+import path from "path";
 import { Kafka } from "kafkajs";
-import app from "./app";
-import { EVENTS } from "./constants/event";
+
+const app = require("./app").default;
+const { EVENTS } = require(
+  process.env.CONSTANTS_PATH
+    ? path.join(process.env.CONSTANTS_PATH, "event")
+    : path.resolve(__dirname, "../../../constants/event")
+) as { EVENTS: Record<string, string> };
 
 const server = createServer(app);
 
@@ -15,13 +21,17 @@ const kafka = new Kafka({
 });
 
 const consumer = kafka.consumer({ groupId: `${SERVER_NAME}-group` });
+const topics = Object.values(EVENTS) as string[];
 
 const startConsumer = async () => {
   await consumer.connect();
-  await consumer.subscribe({ topic: EVENTS.ORDER_CREATED, fromBeginning: false });
+
+  for (const topic of topics) {
+    await consumer.subscribe({ topic, fromBeginning: false });
+  }
 
   await consumer.run({
-    eachMessage: async ({ message }) => {
+    eachMessage: async ({ topic, message }) => {
       const payloadText = message.value?.toString() || "{}";
       let payload: unknown = payloadText;
 
@@ -32,7 +42,7 @@ const startConsumer = async () => {
       }
 
       console.log(
-        `[${SERVER_NAME}] Order received on ${EVENTS.ORDER_CREATED}:`,
+        `[${SERVER_NAME}] Event received on ${topic}:`,
         payload
       );
     },

@@ -36,6 +36,24 @@ services:
       timeout: 10s
       retries: 12
 
+  postgres:
+    image: postgres:16-alpine
+    container_name: postgres
+    environment:
+      POSTGRES_DB: microservices
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./postgres/init:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d microservices"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
   notifications:
     image: node:22-alpine
     container_name: notifications
@@ -51,6 +69,7 @@ services:
       - SERVER_NAME=notifications-service
       - PORT=3001
       - KAFKA_BROKERS=kafka:9092
+      - CONSTANTS_PATH=/constants
     ports:
       - "3001:3001"
     restart: unless-stopped
@@ -66,10 +85,109 @@ services:
     depends_on:
       kafka:
         condition: service_healthy
+      postgres:
+        condition: service_healthy
     environment:
       - SERVER_NAME=orders-service
       - PORT=3002
       - KAFKA_BROKERS=kafka:9092
+      - CONSTANTS_PATH=/constants
+      - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/microservices
     ports:
       - "3002:3002"
     restart: unless-stopped
+
+  payment:
+    image: node:22-alpine
+    container_name: payment
+    working_dir: /app
+    volumes:
+      - ./payment:/app
+      - ./constants:/constants
+    command: sh -c "npm install && npm run dev"
+    depends_on:
+      kafka:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+    environment:
+      - SERVER_NAME=payment-service
+      - PORT=3003
+      - KAFKA_BROKERS=kafka:9092
+      - CONSTANTS_PATH=/constants
+      - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/microservices
+    ports:
+      - "3003:3003"
+    restart: unless-stopped
+
+  inventory:
+    image: node:22-alpine
+    container_name: inventory
+    working_dir: /app
+    volumes:
+      - ./inventory:/app
+      - ./constants:/constants
+    command: sh -c "npm install && npm run dev"
+    depends_on:
+      kafka:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+    environment:
+      - SERVER_NAME=inventory-service
+      - PORT=3004
+      - KAFKA_BROKERS=kafka:9092
+      - CONSTANTS_PATH=/constants
+      - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/microservices
+    ports:
+      - "3004:3004"
+    restart: unless-stopped
+
+  analytics:
+    image: node:22-alpine
+    container_name: analytics
+    working_dir: /app
+    volumes:
+      - ./analytics:/app
+      - ./constants:/constants
+    command: sh -c "npm install && npm run dev"
+    depends_on:
+      kafka:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+    environment:
+      - SERVER_NAME=analytics-service
+      - PORT=3005
+      - KAFKA_BROKERS=kafka:9092
+      - CONSTANTS_PATH=/constants
+      - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/microservices
+    ports:
+      - "3005:3005"
+    restart: unless-stopped
+
+  catalog:
+    image: node:22-alpine
+    container_name: catalog
+    working_dir: /app
+    volumes:
+      - ./catalog:/app
+      - ./constants:/constants
+    command: sh -c "npm install && npm run dev"
+    depends_on:
+      kafka:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+    environment:
+      - SERVER_NAME=catalog-service
+      - PORT=3006
+      - KAFKA_BROKERS=kafka:9092
+      - CONSTANTS_PATH=/constants
+      - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/microservices
+    ports:
+      - "3006:3006"
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
