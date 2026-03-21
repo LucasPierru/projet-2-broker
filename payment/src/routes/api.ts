@@ -13,7 +13,7 @@ const SERVER_NAME = process.env.SERVER_NAME || "payment-service";
 const KAFKA_BROKERS = (process.env.KAFKA_BROKERS || "localhost:9092").split(",");
 
 const api = express.Router();
-const ordersRouter = express.Router();
+const paymentRouter = express.Router();
 const kafka = new Kafka({
   clientId: "payment-service",
   brokers: KAFKA_BROKERS,
@@ -21,7 +21,7 @@ const kafka = new Kafka({
 
 const producer = kafka.producer();
 
-ordersRouter.post("/create", async (req: Request, res: Response) => {
+paymentRouter.post("/create", async (req: Request, res: Response) => {
   const { body } = req;
   await producer.connect();
   await producer.send({
@@ -39,13 +39,13 @@ ordersRouter.post("/create", async (req: Request, res: Response) => {
   });
 });
 
-ordersRouter.get("/info", (_req: Request, res: Response) => {
+paymentRouter.get("/info", (_req: Request, res: Response) => {
   res.json({
     server: SERVER_NAME,
     port: PORT,
   });
 });
 
-api.use("/payments", ordersRouter);
+api.use("/payments", paymentRouter);
 
 export default api;

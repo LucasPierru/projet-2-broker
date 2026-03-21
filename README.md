@@ -1,15 +1,17 @@
 ## Projet 2 - Microservices avec Kafka + PostgreSQL
 
-Ce projet contient plusieurs microservices Node.js/TypeScript qui communiquent via Kafka:
+Ce projet contient plusieurs microservices Node.js/TypeScript qui communiquent via Kafka et partagent une base PostgreSQL.
 
-- `orders`: API HTTP qui publie un événement quand une commande est créée
-- `notifications`: service qui consomme l’événement `order-created`
-- `payment`: API HTTP qui publie un événement de paiement
-- `inventory`: API HTTP qui publie un événement de mise à jour d’inventaire
-- `analytics`: API HTTP qui publie un événement analytique
-- `catalog`: API HTTP qui publie un événement de catalogue
+### Rôle de chaque service
 
-Une base PostgreSQL est aussi incluse avec les modèles SQL demandés.
+| Service | Rôle Kafka | Description |
+|---|---|---|
+| `orders` | **Producteur** | API HTTP — persiste les commandes dans PostgreSQL et publie `order-created` |
+| `notifications` | **Consommateur** | S'abonne à tous les topics Kafka et journalise les événements reçus |
+| `payment` | **Producteur + Consommateur** | Reçoit les événements `order-created` pour déclencher un paiement et publie `payment-created` |
+| `inventory` | **Consommateur** | Consomme les événements de commande pour ajuster les stocks; expose aussi une lecture HTTP de l'inventaire PostgreSQL |
+| `analytics` | **Consommateur** | Consomme les événements des autres services pour le suivi analytique |
+| `catalog` | **Producteur** | API HTTP — gère le catalogue produits et publie `catalog-updated` |
 
 ---
 
@@ -17,7 +19,9 @@ Une base PostgreSQL est aussi incluse avec les modèles SQL demandés.
 
 ```text
 constants/
-	event.ts
+  event.ts          ← constantes Kafka partagées entre tous les services
+db/
+  connection.js     ← pool PostgreSQL partagé entre les services
 notifications/
 orders/
 payment/
@@ -25,19 +29,28 @@ inventory/
 analytics/
 catalog/
 postgres/
-	init/
-		01-models.sql
+  init/
+    01-models.sql         ← création des tables
+    02-seed-demo-data.sql ← données de démonstration (clients, produits, inventaire)
 docker-compose.yml
 ```
 
 ---
 
-## Architecture
+## Architecture événementielle
 
-1. Le client appelle un microservice via HTTP (`POST /v1/.../create`)
-2. Le service publie un message sur son topic Kafka respectif
-3. Les consommateurs (ex: `notifications`) peuvent s’abonner et traiter les messages
-4. PostgreSQL héberge les modèles métiers
+```
+Client HTTP
+    │
+    ▼
+[orders] ──── order-created ────► [notifications]  (log)
+                                ► [payment]        (traitement paiement → payment-created)
+                                ► [inventory]      (mise à jour des stocks)
+                                ► [analytics]      (suivi analytique)
+
+[catalog] ─── catalog-updated ──► [notifications]
+                                ► [analytics]
+```
 
 ---
 
@@ -83,59 +96,94 @@ docker compose down
 
 ## Endpoints
 
-### Orders service
+### Orders service (port 3002)
 
-- `GET http://localhost:3002/v1/orders/info`
-- `POST http://localhost:3002/v1/orders/create`
+- `GET  /v1/orders/info` — informations sur le service
+- `GET  /v1/orders/` — liste toutes les commandes (avec leurs items)
+- `POST /v1/orders/create` — crée une commande, persiste dans PostgreSQL, publie `order-created`
 
-### Notifications service
+Exemple de corps:
+```json
+{
+  "customer_id": "11111111-1111-1111-1111-111111111111",
+  "total": 189.98,
+  "items": [
+    { "product_id": "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa1", "quantity": 1, "unit_price": 129.99 },
+    { "product_id": "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa2", "quantity": 1, "unit_price": 59.99 }
+  ]
+}
+```
 
-- `GET http://localhost:3001/v1/notifications/info`
-- `GET http://localhost:3001/v1/notifications/data`
+### Notifications service (port 3001)
 
-### Payment service
+- `GET /v1/notifications/info` — informations sur le service
+- `GET /v1/notifications/data` — endpoint de test
 
-- `GET http://localhost:3003/v1/payments/info`
-- `POST http://localhost:3003/v1/payments/create`
-- Événement publié: `payment-created`
+> Consomme tous les topics Kafka et affiche les événements dans les logs.
 
-### Inventory service
+### Payment service (port 3003)
 
-- `GET http://localhost:3004/v1/inventory/info`
-- `POST http://localhost:3004/v1/inventory/create`
-- Événement publié: `inventory-updated`
+- `GET  /v1/payments/info` — informations sur le service
+- `POST /v1/payments/create` — publie `payment-created`
 
-### Analytics service
+### Inventory service (port 3004)
 
-- `GET http://localhost:3005/v1/analytics/info`
-- `POST http://localhost:3005/v1/analytics/create`
-- Événement publié: `analytics-tracked`
+- `GET /v1/inventory/info` — informations sur le service
+- `GET /v1/inventory/` — liste l'inventaire avec les informations produits (jointure `catalog_products`)
+- `POST /v1/inventory/create` — publie `inventory-updated`
 
-### Catalog service
+### Analytics service (port 3005)
 
-- `GET http://localhost:3006/v1/catalog/info`
-- `POST http://localhost:3006/v1/catalog/create`
-- Événement publié: `catalog-updated`
+- `GET  /v1/analytics/info` — informations sur le service
+- `POST /v1/analytics/create` — publie `analytics-tracked`
 
-### PostgreSQL
+### Catalog service (port 3006)
 
-- URL locale: `postgresql://postgres:postgres@localhost:5432/microservices`
-- Tables initialisées automatiquement:
-  - `payments`
-  - `inventories`
-  - `analytics_events`
-  - `catalog_products`
+- `GET  /v1/catalog/info` — informations sur le service
+- `POST /v1/catalog/create` — publie `catalog-updated`
 
 ---
 
-## Variables d’environnement
+## Base de données PostgreSQL
 
-Utilisées dans les services:
+URL locale: `postgresql://postgres:postgres@localhost:5432/microservices`
 
-- `SERVER_NAME`
-- `PORT`
-- `KAFKA_BROKERS` (dans Docker: `kafka:9092`)
-- `DATABASE_URL` (ex: `postgresql://postgres:postgres@postgres:5432/microservices`)
+### Tables
+
+| Table | Description |
+|---|---|
+| `customers` | Clients |
+| `catalog_products` | Produits du catalogue |
+| `orders` | Commandes |
+| `order_items` | Lignes de commande (lien `orders` ↔ `catalog_products`) |
+| `inventories` | Stocks par produit (lien `catalog_products`) |
+| `payments` | Paiements liés aux commandes |
+| `analytics_events` | Événements analytiques |
+
+### Données de démonstration (seed)
+
+Clients disponibles:
+- `11111111-1111-1111-1111-111111111111` — Alice Nguyen
+- `22222222-2222-2222-2222-222222222222` — Marc Tremblay
+- `33333333-3333-3333-3333-333333333333` — Sara Bouchard
+
+Produits disponibles:
+- `aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa1` — Mechanical Keyboard (129.99 $)
+- `aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa2` — Wireless Mouse (59.99 $)
+- `aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa3` — 27-inch Monitor (299.99 $)
+
+---
+
+## Variables d'environnement
+
+| Variable | Description |
+|---|---|
+| `SERVER_NAME` | Nom du service |
+| `PORT` | Port d'écoute HTTP |
+| `KAFKA_BROKERS` | Adresse du broker Kafka (Docker: `kafka:9092`) |
+| `DATABASE_URL` | URL de connexion PostgreSQL |
+| `CONSTANTS_PATH` | Chemin vers le dossier `constants/` partagé (Docker: `/constants`) |
+| `DB_PATH` | Chemin vers le dossier `db/` partagé (Docker: `/db`) |
 
 ---
 
@@ -157,5 +205,11 @@ cd catalog && npm install && npm run dev
 ## Dépannage rapide
 
 - Si un endpoint `/v1/...` retourne `not found`, redémarrer le service concerné
-- Si Kafka ne démarre pas, vérifier les logs `docker compose logs kafka zookeeper`
-- Si PostgreSQL ne démarre pas, vérifier `docker compose logs postgres`
+- Si Kafka ne démarre pas: `docker compose logs kafka zookeeper`
+- Si PostgreSQL ne démarre pas: `docker compose logs postgres`
+- Si le schéma est périmé (nouvelles tables manquantes): recréer le volume
+  ```bash
+  docker compose stop postgres && docker compose rm -f postgres
+  docker volume rm projet-2_postgres_data
+  docker compose up -d
+  ```
