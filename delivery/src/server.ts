@@ -40,18 +40,19 @@ type OrderItemPayload = {
 };
 
 type OrderCreatedPayload = {
+  id?: string;
   items?: OrderItemPayload[];
 };
 
-const applyOrderToDelivery = async (items: OrderItemPayload[]) => {
+const applyOrderToDelivery = async (
+  orderId: string | undefined,
+  items: OrderItemPayload[]
+) => {
   for (const item of items) {
     await db.query(
-      `UPDATE inventories
-       SET stock_quantity = GREATEST(stock_quantity - $2, 0),
-           reserved_quantity = reserved_quantity + $2,
-           updated_at = NOW()
-       WHERE product_id = $1`,
-      [item.product_id, item.quantity]
+      `INSERT INTO deliveries (order_id, product_id, quantity, status)
+       VALUES ($1, $2, $3, 'pending')`,
+      [orderId || null, item.product_id, item.quantity]
     );
   }
 };
@@ -73,7 +74,7 @@ const startConsumer = async () => {
 
       const items = Array.isArray(payload.items) ? payload.items : [];
       if (items.length > 0) {
-        await applyOrderToDelivery(items);
+        await applyOrderToDelivery(payload.id, items);
       }
     },
   });

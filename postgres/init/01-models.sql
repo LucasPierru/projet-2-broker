@@ -35,12 +35,16 @@ CREATE TABLE IF NOT EXISTS order_items (
   created_at TIMESTAMP NOT NULL DEFAULT NOW()
 );
 
-CREATE TABLE IF NOT EXISTS inventories (
+CREATE TABLE IF NOT EXISTS deliveries (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  order_id UUID REFERENCES orders(id) ON DELETE SET NULL,
   product_id UUID NOT NULL REFERENCES catalog_products(id),
-  sku VARCHAR(100) UNIQUE NOT NULL,
-  stock_quantity INTEGER NOT NULL DEFAULT 0,
-  reserved_quantity INTEGER NOT NULL DEFAULT 0,
+  quantity INTEGER NOT NULL DEFAULT 1,
+  status VARCHAR(50) NOT NULL DEFAULT 'pending',
+  carrier VARCHAR(100),
+  tracking_number VARCHAR(100) UNIQUE,
+  estimated_delivery_at TIMESTAMP,
+  delivered_at TIMESTAMP,
   created_at TIMESTAMP NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMP NOT NULL DEFAULT NOW()
 );

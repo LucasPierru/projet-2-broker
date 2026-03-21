@@ -56,20 +56,24 @@ deliveryRouter.get("/info", (_req: Request, res: Response) => {
 deliveryRouter.get("/", async (_req: Request, res: Response) => {
   const { rows } = await db.query(
     `SELECT
-        inventories.id,
-        inventories.product_id,
-        inventories.sku,
-        inventories.stock_quantity,
-        inventories.reserved_quantity,
-        inventories.created_at,
-        inventories.updated_at,
+        deliveries.id,
+        deliveries.order_id,
+        deliveries.product_id,
+        deliveries.quantity,
+        deliveries.status,
+        deliveries.carrier,
+        deliveries.tracking_number,
+        deliveries.estimated_delivery_at,
+        deliveries.delivered_at,
+        deliveries.created_at,
+        deliveries.updated_at,
         catalog_products.name,
         catalog_products.description,
         catalog_products.price,
         catalog_products.active
-      FROM inventories
-      INNER JOIN catalog_products ON catalog_products.id = inventories.product_id
-      ORDER BY inventories.created_at DESC`
+      FROM deliveries
+      INNER JOIN catalog_products ON catalog_products.id = deliveries.product_id
+      ORDER BY deliveries.created_at DESC`
   );
 
   res.json({ deliveries: rows });
