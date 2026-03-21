@@ -4,14 +4,13 @@ Ce projet contient plusieurs microservices Node.js/TypeScript qui communiquent v
 
 ### Rôle de chaque service
 
-| Service | Rôle Kafka | Description |
-|---|---|---|
-| `orders` | **Producteur** | API HTTP — persiste les commandes dans PostgreSQL et publie `order-created` |
-| `notifications` | **Consommateur** | S'abonne à tous les topics Kafka et journalise les événements reçus |
-| `payment` | **Producteur + Consommateur** | Reçoit les événements `order-created` pour déclencher un paiement et publie `payment-created` |
-| `inventory` | **Consommateur** | Consomme les événements de commande pour ajuster les stocks; expose aussi une lecture HTTP de l'inventaire PostgreSQL |
-| `analytics` | **Consommateur** | Consomme les événements des autres services pour le suivi analytique |
-| `catalog` | **Producteur** | API HTTP — gère le catalogue produits et publie `catalog-updated` |
+| Service         | Rôle Kafka                    | Description                                                                                                                      |
+| --------------- | ----------------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
+| `orders`        | **Producteur**                | API HTTP — persiste les commandes dans PostgreSQL et publie `order-created`                                                      |
+| `notifications` | **Consommateur**              | Consomme `order-created` et `delivery-updated` pour journaliser les événements clés                                              |
+| `delivery`      | **Producteur + Consommateur** | Consomme `order-created` pour ajuster les stocks, expose une lecture HTTP des livraisons PostgreSQL et publie `delivery-updated` |
+| `analytics`     | **Consommateur**              | Consomme les événements des autres services pour le suivi analytique                                                             |
+| `catalog`       | **Producteur**                | API HTTP — gère le catalogue produits et publie `catalog-updated`                                                                |
 
 ---
 
@@ -24,8 +23,7 @@ db/
   connection.js     ← pool PostgreSQL partagé entre les services
 notifications/
 orders/
-payment/
-inventory/
+delivery/
 analytics/
 catalog/
 postgres/
@@ -44,8 +42,7 @@ Client HTTP
     │
     ▼
 [orders] ──── order-created ────► [notifications]  (log)
-                                ► [payment]        (traitement paiement → payment-created)
-                                ► [inventory]      (mise à jour des stocks)
+                                ► [delivery]       (mise à jour des livraisons)
                                 ► [analytics]      (suivi analytique)
 
 [catalog] ─── catalog-updated ──► [notifications]
@@ -83,7 +80,7 @@ docker compose ps
 Voir les logs en temps réel:
 
 ```bash
-docker compose logs -f orders notifications payment inventory analytics catalog kafka postgres
+docker compose logs -f orders notifications delivery analytics catalog kafka postgres
 ```
 
 Arrêter:
@@ -103,6 +100,7 @@ docker compose down
 - `POST /v1/orders/create` — crée une commande, persiste dans PostgreSQL, publie `order-created`
 
 Exemple de corps:
+
 ```json
 {
   "customer_id": "11111111-1111-1111-1111-111111111111",
@@ -119,28 +117,24 @@ Exemple de corps:
 - `GET /v1/notifications/info` — informations sur le service
 - `GET /v1/notifications/data` — endpoint de test
 
-> Consomme tous les topics Kafka et affiche les événements dans les logs.
+> Consomme `order-created` et `delivery-updated`, puis affiche les événements dans les logs.
 
-### Payment service (port 3003)
+### Delivery service (port 3004)
 
-- `GET  /v1/payments/info` — informations sur le service
-- `POST /v1/payments/create` — publie `payment-created`
-
-### Inventory service (port 3004)
-
-- `GET /v1/inventory/info` — informations sur le service
-- `GET /v1/inventory/` — liste l'inventaire avec les informations produits (jointure `catalog_products`)
-- `POST /v1/inventory/create` — publie `inventory-updated`
+- `GET /v1/delivery/info` — informations sur le service
+- `GET /v1/delivery/` — liste les livraisons avec les informations produits (jointure `catalog_products`)
+- `POST /v1/delivery/create` — publie `delivery-updated`
+- Consomme automatiquement `order-created` pour décrémenter les stocks
 
 ### Analytics service (port 3005)
 
-- `GET  /v1/analytics/info` — informations sur le service
-- `POST /v1/analytics/create` — publie `analytics-tracked`
+- `GET /v1/analytics/info` — informations sur le service
+- Service consommateur d'événements (pas d'endpoint de publication)
 
 ### Catalog service (port 3006)
 
 - `GET  /v1/catalog/info` — informations sur le service
-- `POST /v1/catalog/create` — publie `catalog-updated`
+- `POST /v1/catalog/create` — publie `product-created` et `catalog-updated`
 
 ---
 
@@ -150,24 +144,26 @@ URL locale: `postgresql://postgres:postgres@localhost:5432/microservices`
 
 ### Tables
 
-| Table | Description |
-|---|---|
-| `customers` | Clients |
-| `catalog_products` | Produits du catalogue |
-| `orders` | Commandes |
-| `order_items` | Lignes de commande (lien `orders` ↔ `catalog_products`) |
-| `inventories` | Stocks par produit (lien `catalog_products`) |
-| `payments` | Paiements liés aux commandes |
-| `analytics_events` | Événements analytiques |
+| Table              | Description                                                |
+| ------------------ | ---------------------------------------------------------- |
+| `customers`        | Clients                                                    |
+| `catalog_products` | Produits du catalogue                                      |
+| `orders`           | Commandes                                                  |
+| `order_items`      | Lignes de commande (lien `orders` ↔ `catalog_products`)    |
+| `inventories`      | Stocks par produit (lien `catalog_products`)               |
+| `payments`         | Paiements liés aux commandes (historique, table conservée) |
+| `analytics_events` | Événements analytiques (historique, table conservée)       |
 
 ### Données de démonstration (seed)
 
 Clients disponibles:
+
 - `11111111-1111-1111-1111-111111111111` — Alice Nguyen
 - `22222222-2222-2222-2222-222222222222` — Marc Tremblay
 - `33333333-3333-3333-3333-333333333333` — Sara Bouchard
 
 Produits disponibles:
+
 - `aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa1` — Mechanical Keyboard (129.99 $)
 - `aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa2` — Wireless Mouse (59.99 $)
 - `aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa3` — 27-inch Monitor (299.99 $)
@@ -176,14 +172,14 @@ Produits disponibles:
 
 ## Variables d'environnement
 
-| Variable | Description |
-|---|---|
-| `SERVER_NAME` | Nom du service |
-| `PORT` | Port d'écoute HTTP |
-| `KAFKA_BROKERS` | Adresse du broker Kafka (Docker: `kafka:9092`) |
-| `DATABASE_URL` | URL de connexion PostgreSQL |
+| Variable         | Description                                                        |
+| ---------------- | ------------------------------------------------------------------ |
+| `SERVER_NAME`    | Nom du service                                                     |
+| `PORT`           | Port d'écoute HTTP                                                 |
+| `KAFKA_BROKERS`  | Adresse du broker Kafka (Docker: `kafka:9092`)                     |
+| `DATABASE_URL`   | URL de connexion PostgreSQL                                        |
 | `CONSTANTS_PATH` | Chemin vers le dossier `constants/` partagé (Docker: `/constants`) |
-| `DB_PATH` | Chemin vers le dossier `db/` partagé (Docker: `/db`) |
+| `DB_PATH`        | Chemin vers le dossier `db/` partagé (Docker: `/db`)               |
 
 ---
 
@@ -194,8 +190,7 @@ Vous devez démarrer Kafka/ZooKeeper et PostgreSQL séparément, puis lancer les
 ```bash
 cd orders && npm install && npm run dev
 cd notifications && npm install && npm run dev
-cd payment && npm install && npm run dev
-cd inventory && npm install && npm run dev
+cd delivery && npm install && npm run dev
 cd analytics && npm install && npm run dev
 cd catalog && npm install && npm run dev
 ```

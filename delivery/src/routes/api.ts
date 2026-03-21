@@ -15,20 +15,20 @@ const { getDbPool } = require("@db/connection") as {
 };
 
 const PORT = Number(process.env.PORT) || 3004;
-const SERVER_NAME = process.env.SERVER_NAME || "inventory-service";
+const SERVER_NAME = process.env.SERVER_NAME || "delivery-service";
 const KAFKA_BROKERS = (process.env.KAFKA_BROKERS || "localhost:9092").split(",");
 const db = getDbPool(Pool);
 
 const api = express.Router();
-const inventoryRouter = express.Router();
+const deliveryRouter = express.Router();
 const kafka = new Kafka({
-  clientId: "inventory-service",
+  clientId: "delivery-service",
   brokers: KAFKA_BROKERS,
 });
 
 const producer = kafka.producer();
 
-inventoryRouter.post("/create", async (req: Request, res: Response) => {
+deliveryRouter.post("/create", async (req: Request, res: Response) => {
   const { body } = req;
   await producer.connect();
   await producer.send({
@@ -46,14 +46,14 @@ inventoryRouter.post("/create", async (req: Request, res: Response) => {
   });
 });
 
-inventoryRouter.get("/info", (_req: Request, res: Response) => {
+deliveryRouter.get("/info", (_req: Request, res: Response) => {
   res.json({
     server: SERVER_NAME,
     port: PORT,
   });
 });
 
-inventoryRouter.get("/", async (_req: Request, res: Response) => {
+deliveryRouter.get("/", async (_req: Request, res: Response) => {
   const { rows } = await db.query(
     `SELECT
         inventories.id,
@@ -72,9 +72,9 @@ inventoryRouter.get("/", async (_req: Request, res: Response) => {
       ORDER BY inventories.created_at DESC`
   );
 
-  res.json({ inventories: rows });
+  res.json({ deliveries: rows });
 });
 
-api.use("/inventory", inventoryRouter);
+api.use("/delivery", deliveryRouter);
 
 export default api;

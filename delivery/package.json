@@ -1,5 +1,5 @@
 {
-  "name": "inventory",
+  "name": "delivery",
   "version": "1.0.0",
   "main": "dist/src/server.js",
   "scripts": {

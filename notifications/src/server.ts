@@ -21,7 +21,10 @@ const kafka = new Kafka({
 });
 
 const consumer = kafka.consumer({ groupId: `${SERVER_NAME}-group` });
-const topics = Object.values(EVENTS) as string[];
+const topics = [
+  EVENTS.ORDER_CREATED,
+  EVENTS.DELIVERY_UPDATED,
+] as string[];
 
 const startConsumer = async () => {
   await consumer.connect();

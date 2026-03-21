@@ -25,6 +25,10 @@ catalogRouter.post("/create", async (req: Request, res: Response) => {
   const { body } = req;
   await producer.connect();
   await producer.send({
+    topic: EVENTS.PRODUCT_CREATED,
+    messages: [{ value: JSON.stringify(body) }],
+  });
+  await producer.send({
     topic: EVENTS.CATALOG_UPDATED,
     messages: [{ value: JSON.stringify(body) }],
   });

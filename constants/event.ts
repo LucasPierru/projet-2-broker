@@ -1,7 +1,6 @@
 export const EVENTS = {
   ORDER_CREATED: 'order-created',
-  PAYMENT_CREATED: 'payment-created',
-  INVENTORY_UPDATED: 'inventory-updated',
-  ANALYTICS_TRACKED: 'analytics-tracked',
+  DELIVERY_UPDATED: 'delivery-updated',
   CATALOG_UPDATED: 'catalog-updated',
+  PRODUCT_CREATED: 'product-created',
 }

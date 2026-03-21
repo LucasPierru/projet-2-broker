@@ -3,27 +3,62 @@ skinparam shadowing false
 skinparam defaultFontName "Arial"
 skinparam ArrowColor #333333
 skinparam componentStyle rectangle
+left to right direction
 
-title Event Processing - C&C View
+title Event-Oriented System - C&C View
 
-rectangle " " as SYS #eaf6e8 {
+component "Client" as Client #FFFFEE
+database "PostgreSQL\n(shared)" as DB
+
+rectangle "Event-Oriented System" as SYS #eaf6e8 {
 	skinparam rectangle {
 		BackgroundColor #eaf6e8
 		BorderColor #88b379
 	}
 
-	component "Orders Service" as Orders
-	component "Notifications Service" as Notifications
-	queue "Event Bus" as EventBus
+	rectangle "Producers" as PROD #f0f4ff {
+		component "Orders\nService" as Orders
+		component "Catalog\nService" as Catalog
+		component "Delivery\nService" as DeliveryP
+	}
+
+	rectangle "Event Buses (Kafka Topics)" as BUS #f7f7f7 {
+		queue "order-created" as BusOrder
+		queue "delivery-updated" as BusDelivery
+		queue "catalog-updated" as BusCatalog
+		queue "product-created" as BusProduct
+	}
+
+	rectangle "Consumers" as CONS #fff4f0 {
+		component "Delivery\nService" as DeliveryC
+		component "Analytics\nService" as Analytics
+		component "Notifications\nService" as Notifications
+	}
 }
 
-component "Client" as Client #FFFFEE
+' ── HTTP ───────────────────────────────────────────────────────────
+Client -[#555555]-> Orders    : <<HTTP>>
+Client -[#555555]-> Catalog   : <<HTTP>>
+Client -[#555555]-> DeliveryP  : <<HTTP>>
 
-Client --> Orders : <<HTTP>> Create order
-Orders --> Client : <<HTTP>> Response
+' ── Publish ────────────────────────────────────────────────────────
+Orders      -[#2E8B57]-> BusOrder     : <<publish>>
+Catalog     -[#2E8B57]-> BusCatalog   : <<publish>>
+Catalog     -[#2E8B57]-> BusProduct   : <<publish>>
+DeliveryP   -[#2E8B57]-> BusDelivery  : <<publish>>
 
-Orders -[#2E8B57]-> EventBus : publish order-created
-EventBus -[#2E8B57]-> Notifications : consume order-created
+' ── Consume ────────────────────────────────────────────────────────
+BusOrder    -[#4169E1]-> DeliveryC     : <<consume>>
 
+BusOrder    -[#4169E1]-> Notifications : <<consume>>
+BusDelivery-[#4169E1]-> Notifications  : <<consume>>
+
+BusOrder    -[#4169E1]-> Analytics     : <<consume>>
+BusDelivery-[#4169E1]-> Analytics      : <<consume>>
+BusCatalog  -[#4169E1]-> Analytics     : <<consume>>
+BusProduct  -[#4169E1]-> Analytics     : <<consume>>
+
+' ── Database (all services share PostgreSQL) ───────────────────────
+SYS -[#B8860B]-> DB : <<persist>>
 
 @enduml

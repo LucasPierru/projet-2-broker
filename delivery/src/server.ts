@@ -24,7 +24,7 @@ const server = createServer(app);
 const db = getDbPool(Pool);
 
 const PORT = Number(process.env.PORT) || 3004;
-const SERVER_NAME = process.env.SERVER_NAME || "inventory-service";
+const SERVER_NAME = process.env.SERVER_NAME || "delivery-service";
 const KAFKA_BROKERS = (process.env.KAFKA_BROKERS || "localhost:9092").split(",");
 
 const kafka = new Kafka({
@@ -43,7 +43,7 @@ type OrderCreatedPayload = {
   items?: OrderItemPayload[];
 };
 
-const applyOrderToInventory = async (items: OrderItemPayload[]) => {
+const applyOrderToDelivery = async (items: OrderItemPayload[]) => {
   for (const item of items) {
     await db.query(
       `UPDATE inventories
@@ -73,7 +73,7 @@ const startConsumer = async () => {
 
       const items = Array.isArray(payload.items) ? payload.items : [];
       if (items.length > 0) {
-        await applyOrderToInventory(items);
+        await applyOrderToDelivery(items);
       }
     },
   });
