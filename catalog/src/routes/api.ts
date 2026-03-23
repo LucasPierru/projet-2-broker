@@ -1,38 +1,24 @@
 import express, { Request, Response } from "express";
-import { Kafka } from "kafkajs";
-import path from "path";
-
-const { EVENTS } = require(
-  process.env.CONSTANTS_PATH
-    ? path.join(process.env.CONSTANTS_PATH, "event")
-    : path.resolve(__dirname, "../../../../constants/event")
-) as { EVENTS: Record<string, string> };
+import { EVENTS } from "../../../constants/event";
+import {
+  createCatalogProducer,
+  publishCatalogEvents,
+} from "../producer/catalogProducer";
 
 const PORT = Number(process.env.PORT) || 3006;
 const SERVER_NAME = process.env.SERVER_NAME || "catalog-service";
-const KAFKA_BROKERS = (process.env.KAFKA_BROKERS || "localhost:9092").split(",");
 
 const api = express.Router();
 const catalogRouter = express.Router();
-const kafka = new Kafka({
-  clientId: "catalog-service",
-  brokers: KAFKA_BROKERS,
-});
-
-const producer = kafka.producer();
+const producer = createCatalogProducer();
 
 catalogRouter.post("/create", async (req: Request, res: Response) => {
   const { body } = req;
-  await producer.connect();
-  await producer.send({
-    topic: EVENTS.PRODUCT_CREATED,
-    messages: [{ value: JSON.stringify(body) }],
-  });
-  await producer.send({
-    topic: EVENTS.CATALOG_UPDATED,
-    messages: [{ value: JSON.stringify(body) }],
-  });
-  await producer.disconnect();
+  await publishCatalogEvents(
+    producer,
+    [EVENTS.PRODUCT_CREATED, EVENTS.CATALOG_UPDATED],
+    body
+  );
 
   res.json({
     success: true,

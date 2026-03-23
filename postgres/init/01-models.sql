@@ -38,7 +38,6 @@ CREATE TABLE IF NOT EXISTS order_items (
 CREATE TABLE IF NOT EXISTS deliveries (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   order_id UUID REFERENCES orders(id) ON DELETE SET NULL,
-  product_id UUID NOT NULL REFERENCES catalog_products(id),
   quantity INTEGER NOT NULL DEFAULT 1,
   status VARCHAR(50) NOT NULL DEFAULT 'pending',
   carrier VARCHAR(100),
@@ -49,20 +48,23 @@ CREATE TABLE IF NOT EXISTS deliveries (
   updated_at TIMESTAMP NOT NULL DEFAULT NOW()
 );
 
-CREATE TABLE IF NOT EXISTS payments (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  payment_id VARCHAR(100) UNIQUE NOT NULL,
-  order_id UUID NOT NULL REFERENCES orders(id),
-  amount NUMERIC(10, 2) NOT NULL,
-  status VARCHAR(50) NOT NULL DEFAULT 'pending',
-  created_at TIMESTAMP NOT NULL DEFAULT NOW(),
-  updated_at TIMESTAMP NOT NULL DEFAULT NOW()
-);
-
 CREATE TABLE IF NOT EXISTS analytics_events (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   event_type VARCHAR(100) NOT NULL,
   source_service VARCHAR(100) NOT NULL,
   payload JSONB NOT NULL,
   created_at TIMESTAMP NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS notifications (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  event_type VARCHAR(100) NOT NULL,
+  payload JSONB NOT NULL,
+  status VARCHAR(50) NOT NULL DEFAULT 'pending',
+  attempts INTEGER NOT NULL DEFAULT 0,
+  last_error TEXT,
+  next_retry_at TIMESTAMP,
+  sent_at TIMESTAMP,
+  created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMP NOT NULL DEFAULT NOW()
 );

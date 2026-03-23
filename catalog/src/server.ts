@@ -1,7 +1,5 @@
 import { createServer } from "http";
-import path from "path";
-
-const app = require("./app").default;
+import app from "./app";
 
 const server = createServer(app);
 
