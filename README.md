@@ -7,7 +7,7 @@ Ce projet contient plusieurs microservices Node.js/TypeScript qui communiquent v
 | Service         | Rôle Kafka                    | Description                                                                                                                        |
 | --------------- | ----------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
 | `orders`        | **Producteur**                | API HTTP — persiste les commandes dans PostgreSQL et publie `order-created`                                                        |
-| `notifications` | **Consommateur**              | Consomme `order-created` et `delivery-updated` pour journaliser les événements clés                                                |
+| `notifications` | **Consommateur**              | Consomme `order-created` et `delivery-updated`, persiste les notifications et gère les retries en cas d'échec d'envoi              |
 | `delivery`      | **Producteur + Consommateur** | Consomme `order-created` pour créer les livraisons, expose une lecture HTTP des livraisons PostgreSQL et publie `delivery-updated` |
 | `analytics`     | **Consommateur**              | Consomme les événements des autres services pour le suivi analytique                                                               |
 | `catalog`       | **Producteur**                | API HTTP — gère le catalogue produits et publie `catalog-updated`                                                                  |
@@ -115,14 +115,14 @@ Exemple de corps:
 ### Notifications service (port 3001)
 
 - `GET /v1/notifications/info` — informations sur le service
-- `GET /v1/notifications/data` — endpoint de test
+- `POST /v1/notifications/retry-failed` — relance les notifications en échec prêtes à être retentées
 
-> Consomme `order-created` et `delivery-updated`, puis affiche les événements dans les logs.
+> Consomme `order-created` et `delivery-updated`, stocke les tentatives d'envoi dans PostgreSQL (`pending` / `sent` / `failed`) et permet le retry.
 
 ### Delivery service (port 3004)
 
 - `GET /v1/delivery/info` — informations sur le service
-- `GET /v1/delivery/` — liste les livraisons avec les informations produits (jointure `catalog_products`)
+- `GET /v1/delivery/` — liste les livraisons par commande
 - `POST /v1/delivery/create` — publie `delivery-updated`
 - Consomme automatiquement `order-created` pour créer les enregistrements de livraison
 
@@ -144,15 +144,15 @@ URL locale: `postgresql://postgres:postgres@localhost:5432/microservices`
 
 ### Tables
 
-| Table              | Description                                                      |
-| ------------------ | ---------------------------------------------------------------- |
-| `customers`        | Clients                                                          |
-| `catalog_products` | Produits du catalogue                                            |
-| `orders`           | Commandes                                                        |
-| `order_items`      | Lignes de commande (lien `orders` ↔ `catalog_products`)          |
-| `deliveries`       | Livraisons par produit et commande (statut, suivi, transporteur) |
-| `payments`         | Paiements liés aux commandes (historique, table conservée)       |
-| `analytics_events` | Événements analytiques (historique, table conservée)             |
+| Table              | Description                                                  |
+| ------------------ | ------------------------------------------------------------ |
+| `customers`        | Clients                                                      |
+| `catalog_products` | Produits du catalogue                                        |
+| `orders`           | Commandes                                                    |
+| `order_items`      | Lignes de commande (lien `orders` ↔ `catalog_products`)      |
+| `deliveries`       | Livraisons par commande (statut, suivi, transporteur)        |
+| `notifications`    | Notifications persistées (statut, tentatives, erreur, retry) |
+| `analytics_events` | Événements analytiques (historique, table conservée)         |
 
 ### Données de démonstration (seed)
 

@@ -1,11 +1,14 @@
 import express, { Request, Response } from "express";
-import { Kafka } from "kafkajs";
-const { Pool } = require("pg");
+import { Pool } from "pg";
+import { EVENTS } from "../../../constants/event";
+import { listDeliveries } from "../services/delivery";
+import {
+  createDeliveryProducer,
+  publishDeliveryUpdated,
+} from "../producer/deliveryProducer";
+import { getDbPool } from "../../../db/connection";
 
-const { EVENTS } = require("@constants/event") as {
-  EVENTS: Record<string, string>;
-};
-const { getDbPool } = require("@db/connection") as {
+const dbPool = { getDbPool } as {
   getDbPool: (PoolCtor: typeof Pool) => {
     query: (
       text: string,
@@ -16,26 +19,15 @@ const { getDbPool } = require("@db/connection") as {
 
 const PORT = Number(process.env.PORT) || 3004;
 const SERVER_NAME = process.env.SERVER_NAME || "delivery-service";
-const KAFKA_BROKERS = (process.env.KAFKA_BROKERS || "localhost:9092").split(",");
-const db = getDbPool(Pool);
+const db = dbPool.getDbPool(Pool);
 
 const api = express.Router();
 const deliveryRouter = express.Router();
-const kafka = new Kafka({
-  clientId: "delivery-service",
-  brokers: KAFKA_BROKERS,
-});
-
-const producer = kafka.producer();
+const producer = createDeliveryProducer();
 
 deliveryRouter.post("/create", async (req: Request, res: Response) => {
   const { body } = req;
-  await producer.connect();
-  await producer.send({
-    topic: EVENTS.DELIVERY_UPDATED,
-    messages: [{ value: JSON.stringify(body) }],
-  });
-  await producer.disconnect();
+  await publishDeliveryUpdated(producer, EVENTS.DELIVERY_UPDATED, body);
 
   res.json({
     success: true,
@@ -54,29 +46,8 @@ deliveryRouter.get("/info", (_req: Request, res: Response) => {
 });
 
 deliveryRouter.get("/", async (_req: Request, res: Response) => {
-  const { rows } = await db.query(
-    `SELECT
-        deliveries.id,
-        deliveries.order_id,
-        deliveries.product_id,
-        deliveries.quantity,
-        deliveries.status,
-        deliveries.carrier,
-        deliveries.tracking_number,
-        deliveries.estimated_delivery_at,
-        deliveries.delivered_at,
-        deliveries.created_at,
-        deliveries.updated_at,
-        catalog_products.name,
-        catalog_products.description,
-        catalog_products.price,
-        catalog_products.active
-      FROM deliveries
-      INNER JOIN catalog_products ON catalog_products.id = deliveries.product_id
-      ORDER BY deliveries.created_at DESC`
-  );
-
-  res.json({ deliveries: rows });
+  const deliveries = await listDeliveries(db);
+  res.json({ deliveries });
 });
 
 api.use("/delivery", deliveryRouter);
