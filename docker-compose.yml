@@ -60,16 +60,19 @@ services:
     working_dir: /app
     volumes:
       - ./notifications:/app
-      - ./constants:/constants
+      - ./constants:/app/constants
+      - ./db:/app/db
     command: sh -c "npm install && npm run dev"
     depends_on:
       kafka:
+        condition: service_healthy
+      postgres:
         condition: service_healthy
     environment:
       - SERVER_NAME=notifications-service
       - PORT=3001
       - KAFKA_BROKERS=kafka:9092
-      - CONSTANTS_PATH=/constants
+      - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/microservices
     ports:
       - "3001:3001"
     restart: unless-stopped
@@ -80,8 +83,8 @@ services:
     working_dir: /app
     volumes:
       - ./orders:/app
-      - ./constants:/constants
-      - ./db:/db
+      - ./constants:/app/constants
+      - ./db:/app/db
     command: sh -c "npm install && npm run dev"
     depends_on:
       kafka:
@@ -92,8 +95,6 @@ services:
       - SERVER_NAME=orders-service
       - PORT=3002
       - KAFKA_BROKERS=kafka:9092
-      - CONSTANTS_PATH=/constants
-      - DB_PATH=/db
       - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/microservices
     ports:
       - "3002:3002"
@@ -105,8 +106,8 @@ services:
     working_dir: /app
     volumes:
       - ./delivery:/app
-      - ./constants:/constants
-      - ./db:/db
+      - ./constants:/app/constants
+      - ./db:/app/db
     command: sh -c "npm install && npm run dev"
     depends_on:
       kafka:
@@ -117,8 +118,6 @@ services:
       - SERVER_NAME=delivery-service
       - PORT=3004
       - KAFKA_BROKERS=kafka:9092
-      - CONSTANTS_PATH=/constants
-      - DB_PATH=/db
       - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/microservices
     ports:
       - "3004:3004"
@@ -130,7 +129,6 @@ services:
     working_dir: /app
     volumes:
       - ./analytics:/app
-      - ./constants:/constants
     command: sh -c "npm install && npm run dev"
     depends_on:
       kafka:
@@ -141,7 +139,6 @@ services:
       - SERVER_NAME=analytics-service
       - PORT=3005
       - KAFKA_BROKERS=kafka:9092
-      - CONSTANTS_PATH=/constants
       - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/microservices
     ports:
       - "3005:3005"
@@ -153,7 +150,7 @@ services:
     working_dir: /app
     volumes:
       - ./catalog:/app
-      - ./constants:/constants
+      - ./constants:/app/constants
     command: sh -c "npm install && npm run dev"
     depends_on:
       kafka:
@@ -164,7 +161,6 @@ services:
       - SERVER_NAME=catalog-service
       - PORT=3006
       - KAFKA_BROKERS=kafka:9092
-      - CONSTANTS_PATH=/constants
       - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/microservices
     ports:
       - "3006:3006"
