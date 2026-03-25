@@ -129,6 +129,8 @@ services:
     working_dir: /app
     volumes:
       - ./analytics:/app
+      - ./constants:/app/constants
+      - ./db:/app/db
     command: sh -c "npm install && npm run dev"
     depends_on:
       kafka:
@@ -151,6 +153,7 @@ services:
     volumes:
       - ./catalog:/app
       - ./constants:/app/constants
+      - ./db:/app/db
     command: sh -c "npm install && npm run dev"
     depends_on:
       kafka:
