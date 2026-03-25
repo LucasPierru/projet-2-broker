@@ -1,6 +1,5 @@
 import express, { Request, Response } from "express";
 import { Pool } from "pg";
-import { retryFailedNotifications } from "../services/notification";
 import { getDbPool } from "../../../db/connection";
 
 const dbPool = { getDbPool } as {
@@ -18,18 +17,6 @@ const db = dbPool.getDbPool(Pool);
 
 const api = express.Router();
 const notificationsRouter = express.Router();
-
-notificationsRouter.post("/retry-failed", async (_req: Request, res: Response) => {
-  const result = await retryFailedNotifications(db);
-
-  res.json({
-    success: true,
-    server: SERVER_NAME,
-    port: PORT,
-    datetime: new Date().toISOString(),
-    retry: result,
-  });
-});
 
 notificationsRouter.get("/info", (_req: Request, res: Response) => {
   res.json({

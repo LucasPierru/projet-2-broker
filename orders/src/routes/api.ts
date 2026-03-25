@@ -1,7 +1,7 @@
 import express, { Request, Response } from "express";
 import { Pool } from "pg";
-import { Order } from "../@types/orders.types";
-import { createOrder, listOrders } from "../services/order";
+import { Order } from "../types/orders.types";
+import { createOrder, listCustomerOrders, getOrderById } from "../services/order";
 import { createOrdersProducer } from "../producer/orderProducer";
 import { getDbPool } from "../../../db/connection";
 
@@ -17,7 +17,7 @@ const api = express.Router();
 const ordersRouter = express.Router();
 const producer = createOrdersProducer();
 
-ordersRouter.post("/create", async (req: Request, res: Response) => {
+ordersRouter.post("/", async (req: Request, res: Response) => {
   const { customer_id, items, total } = req.body;
   await createOrder(db, producer, { customer_id, items, total });
 
@@ -30,8 +30,9 @@ ordersRouter.post("/create", async (req: Request, res: Response) => {
   });
 });
 
-ordersRouter.get("/", async (_req: Request, res: Response) => {
-  const ordersWithItems: Order[] = await listOrders(db);
+ordersRouter.get("/customer/:customerId", async (req: Request, res: Response) => {
+  const customerId = req.params.customerId as string;
+  const ordersWithItems: Order[] = await listCustomerOrders(db, customerId);
   res.json({ orders: ordersWithItems });
 });
 
@@ -40,6 +41,21 @@ ordersRouter.get("/info", (_req: Request, res: Response) => {
     server: SERVER_NAME,
     port: PORT,
   });
+});
+
+ordersRouter.get("/:orderId", async (req: Request, res: Response) => {
+  const orderId = req.params.orderId as string;
+  const order = await getOrderById(db, orderId);
+
+  if (!order) {
+    res.status(404).json({
+      error: "Order not found",
+      orderId,
+    });
+    return;
+  }
+
+  res.json({ order });
 });
 
 api.use("/orders", ordersRouter);

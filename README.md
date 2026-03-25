@@ -96,8 +96,9 @@ docker compose down
 ### Orders service (port 3002)
 
 - `GET  /v1/orders/info` — informations sur le service
-- `GET  /v1/orders/` — liste toutes les commandes (avec leurs items)
-- `POST /v1/orders/create` — crée une commande, persiste dans PostgreSQL, publie `order-created`
+- `GET  /v1/orders/customer/:customerId` — liste les commandes d'un client (avec leurs items)
+- `GET  /v1/orders/:orderId` — détail d'une commande
+- `POST /v1/orders/` — crée une commande, persiste dans PostgreSQL, publie `order-created`
 
 Exemple de corps:
 
@@ -115,26 +116,28 @@ Exemple de corps:
 ### Notifications service (port 3001)
 
 - `GET /v1/notifications/info` — informations sur le service
-- `POST /v1/notifications/retry-failed` — relance les notifications en échec prêtes à être retentées
 
-> Consomme `order-created` et `delivery-updated`, stocke les tentatives d'envoi dans PostgreSQL (`pending` / `sent` / `failed`) et permet le retry.
+> Consomme `order-created` et `delivery-updated`, puis stocke l'état d'envoi dans PostgreSQL (`pending` / `sent` / `failed`).
 
 ### Delivery service (port 3004)
 
-- `GET /v1/delivery/info` — informations sur le service
-- `GET /v1/delivery/` — liste les livraisons par commande
-- `POST /v1/delivery/create` — publie `delivery-updated`
+- `GET /v1/deliveries/info` — informations sur le service
+- `GET /v1/deliveries/order/:orderId/status` — retourne le statut de livraison d'une commande
+- `PUT /v1/deliveries/:deliveryId` — met à jour une livraison et publie `delivery-updated`
 - Consomme automatiquement `order-created` pour créer les enregistrements de livraison
 
 ### Analytics service (port 3005)
 
 - `GET /v1/analytics/info` — informations sur le service
-- Service consommateur d'événements (pas d'endpoint de publication)
+- `GET /v1/analytics/` — retourne les logs récents (`?limit=` optionnel)
+- Consomme tous les topics d'événements déclarés dans `constants/event.ts`
 
 ### Catalog service (port 3006)
 
-- `GET  /v1/catalog/info` — informations sur le service
-- `POST /v1/catalog/create` — publie `product-created` et `catalog-updated`
+- `GET  /v1/catalogs/info` — informations sur le service
+- `GET  /v1/catalogs/` — liste les produits
+- `POST /v1/catalogs/` — crée un produit et publie `product-created` + `catalog-updated`
+- `PUT  /v1/catalogs/:productId` — met à jour un produit et publie `catalog-updated`
 
 ---
 

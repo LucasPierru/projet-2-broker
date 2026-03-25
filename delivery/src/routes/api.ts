@@ -1,7 +1,7 @@
 import express, { Request, Response } from "express";
 import { Pool } from "pg";
 import { EVENTS } from "../../../constants/event";
-import { listDeliveries } from "../services/delivery";
+import { getOrderDelivery, updateDelivery } from "../services/delivery";
 import {
   createDeliveryProducer,
   publishDeliveryUpdated,
@@ -25,16 +25,26 @@ const api = express.Router();
 const deliveryRouter = express.Router();
 const producer = createDeliveryProducer();
 
-deliveryRouter.post("/create", async (req: Request, res: Response) => {
-  const { body } = req;
-  await publishDeliveryUpdated(producer, EVENTS.DELIVERY_UPDATED, body);
+deliveryRouter.put("/:deliveryId", async (req: Request, res: Response) => {
+  const deliveryId = req.params.deliveryId as string;
+  const delivery = await updateDelivery(db, deliveryId, req.body);
+
+  if (!delivery) {
+    return res.status(404).json({
+      error: "Delivery not found",
+      deliveryId,
+    });
+  }
+
+  // Publish event
+  await publishDeliveryUpdated(producer, EVENTS.DELIVERY_UPDATED, delivery);
 
   res.json({
     success: true,
     server: SERVER_NAME,
     port: PORT,
     datetime: new Date().toISOString(),
-    message: `Hello from ${SERVER_NAME} on port ${PORT}!`,
+    delivery,
   });
 });
 
@@ -45,11 +55,20 @@ deliveryRouter.get("/info", (_req: Request, res: Response) => {
   });
 });
 
-deliveryRouter.get("/", async (_req: Request, res: Response) => {
-  const deliveries = await listDeliveries(db);
-  res.json({ deliveries });
+deliveryRouter.get("/order/:orderId/status", async (req: Request, res: Response) => {
+  const orderId = req.params.orderId as string;
+  const delivery = await getOrderDelivery(db, orderId);
+
+  if (!delivery) {
+    return res.status(404).json({
+      error: "Delivery not found for this order",
+      orderId,
+    });
+  }
+
+  return res.json({ delivery });
 });
 
-api.use("/delivery", deliveryRouter);
+api.use("/deliveries", deliveryRouter);
 
 export default api;
