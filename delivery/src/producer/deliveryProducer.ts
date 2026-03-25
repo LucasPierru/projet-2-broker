@@ -4,10 +4,15 @@ type KafkaProducer = {
   connect: () => Promise<void>;
   send: (payload: {
     topic: string;
-    messages: Array<{ value: string }>;
+    messages: Array<{
+      value: string;
+      headers?: Record<string, string>;
+    }>;
   }) => Promise<unknown>;
   disconnect: () => Promise<void>;
 };
+
+const SOURCE_SERVICE_HEADER = { "source-service": "delivery-service" };
 
 export const createDeliveryProducer = () => {
   const KAFKA_BROKERS = (process.env.KAFKA_BROKERS || "localhost:9092").split(",");
@@ -28,7 +33,12 @@ export const publishDeliveryUpdated = async (
   try {
     await producer.send({
       topic,
-      messages: [{ value: JSON.stringify(payload) }],
+      messages: [
+        {
+          value: JSON.stringify(payload),
+          headers: SOURCE_SERVICE_HEADER,
+        },
+      ],
     });
   } finally {
     await producer.disconnect();

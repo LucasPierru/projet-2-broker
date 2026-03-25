@@ -1,4 +1,4 @@
-import { Order, OrderItem } from "../@types/orders.types";
+import { Order, OrderItem } from "../types/orders.types";
 import { publishOrderCreated } from "../producer/orderProducer";
 
 type DbClient = {
@@ -24,25 +24,89 @@ type CreateOrderPayload = {
   }>;
 };
 
-export const listOrders = async (db: DbClient) => {
-  const { rows: orders }: { rows: Order[] } = await db.query(
-    `SELECT * FROM orders ORDER BY created_at DESC`
+export const listCustomerOrders = async (db: DbClient, customerId: string) => {
+  const { rows } = await db.query(
+    `SELECT 
+       o.id, o.customer_id, o.status, o.total, o.created_at, o.updated_at,
+       oi.id AS item_id, oi.order_id, oi.product_id, oi.quantity, oi.unit_price, oi.created_at AS item_created_at
+     FROM orders o
+     LEFT JOIN order_items oi ON o.id = oi.order_id
+     WHERE o.customer_id = $1
+     ORDER BY o.created_at DESC`,
+    [customerId]
   );
 
-  if (orders.length === 0) {
+  if (rows.length === 0) {
     return [];
   }
 
-  const { rows: items }: { rows: OrderItem[] } = await db.query(
-    `SELECT * FROM order_items WHERE order_id = ANY($1)`,
-    [orders.map((o) => o.id)]
+  // Group rows by order
+  const ordersMap = new Map<string, Order>();
+
+  rows.forEach((row: any) => {
+    if (!ordersMap.has(row.id)) {
+      ordersMap.set(row.id, {
+        id: row.id,
+        customer_id: row.customer_id,
+        status: row.status,
+        total: row.total,
+        created_at: row.created_at,
+        updated_at: row.updated_at,
+        items: [],
+      });
+    }
+
+    if (row.item_id) {
+      ordersMap.get(row.id)!.items!.push({
+        id: row.item_id,
+        order_id: row.order_id,
+        product_id: row.product_id,
+        quantity: row.quantity,
+        unit_price: row.unit_price,
+        created_at: row.item_created_at,
+      } as OrderItem);
+    }
+  });
+
+  return Array.from(ordersMap.values());
+};
+
+export const getOrderById = async (db: DbClient, orderId: string) => {
+  const { rows } = await db.query(
+    `SELECT 
+       o.id, o.customer_id, o.status, o.total, o.created_at, o.updated_at,
+       oi.id AS item_id, oi.order_id, oi.product_id, oi.quantity, oi.unit_price, oi.created_at AS item_created_at
+     FROM orders o
+     LEFT JOIN order_items oi ON o.id = oi.order_id
+     WHERE o.id = $1`,
+    [orderId]
   );
 
-  const ordersWithItems: Order[] = orders.map((order) => ({
-    ...order,
-    items: items.filter((item) => item.order_id === order.id),
-  }));
-  return ordersWithItems;
+  if (rows.length === 0) {
+    return null;
+  }
+
+  const firstRow = rows[0];
+  const order: Order = {
+    id: firstRow.id,
+    customer_id: firstRow.customer_id,
+    status: firstRow.status,
+    total: firstRow.total,
+    created_at: firstRow.created_at,
+    updated_at: firstRow.updated_at,
+    items: rows
+      .filter((row: any) => row.item_id)
+      .map((row: any) => ({
+        id: row.item_id,
+        order_id: row.order_id,
+        product_id: row.product_id,
+        quantity: row.quantity,
+        unit_price: row.unit_price,
+        created_at: row.item_created_at,
+      } as OrderItem)),
+  };
+
+  return order;
 };
 
 const insertOrderWithItems = async (
