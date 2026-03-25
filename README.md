@@ -184,22 +184,6 @@ Produits disponibles:
 | `CONSTANTS_PATH` | Chemin vers le dossier `constants/` partagé (Docker: `/constants`) |
 | `DB_PATH`        | Chemin vers le dossier `db/` partagé (Docker: `/db`)               |
 
----
-
-## Exécution locale sans Docker (optionnel)
-
-Vous devez démarrer Kafka/ZooKeeper et PostgreSQL séparément, puis lancer les services voulus:
-
-```bash
-cd orders && npm install && npm run dev
-cd notifications && npm install && npm run dev
-cd delivery && npm install && npm run dev
-cd analytics && npm install && npm run dev
-cd catalog && npm install && npm run dev
-```
-
----
-
 ## Dépannage rapide
 
 - Si un endpoint `/v1/...` retourne `not found`, redémarrer le service concerné
