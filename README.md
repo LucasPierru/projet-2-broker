@@ -152,7 +152,7 @@ URL locale: `postgresql://postgres:postgres@localhost:5432/microservices`
 | `customers`        | Clients                                                      |
 | `catalog_products` | Produits du catalogue                                        |
 | `orders`           | Commandes                                                    |
-| `order_items`      | Lignes de commande (lien `orders` ↔ `catalog_products`)      |
+| `order_items`      | Produits des commandes                                       |
 | `deliveries`       | Livraisons par commande (statut, suivi, transporteur)        |
 | `notifications`    | Notifications persistées (statut, tentatives, erreur, retry) |
 | `analytics_events` | Événements analytiques (historique, table conservée)         |
