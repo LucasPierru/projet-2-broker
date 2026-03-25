@@ -91,6 +91,42 @@ docker compose down
 
 ---
 
+## UI Web simple (HTML/CSS/JS)
+
+Un client web minimal est disponible dans `ui/`:
+
+- `ui/index.html` — liste les produits du catalog et permet de créer une commande
+- `ui/orders.html` — liste les commandes d'un client et permet de mettre à jour le statut de livraison
+- `ui/logs.html` — affiche les logs récents de `analytics` et `notifications`
+
+### Lancer l'UI
+
+1. Démarrer les services backend:
+
+```bash
+docker compose up -d
+```
+
+2. Servir le dossier `ui/` localement (exemple avec Node):
+
+```bash
+npx serve ui -l 8080
+```
+
+3. Ouvrir:
+
+- http://localhost:8080/index.html
+- http://localhost:8080/orders.html
+- http://localhost:8080/logs.html
+
+> L'UI appelle directement:
+>
+> - Catalog: `http://localhost:3006/v1/catalogs`
+> - Orders: `http://localhost:3002/v1/orders`
+> - Delivery: `http://localhost:3004/v1/deliveries`
+
+---
+
 ## Endpoints
 
 ### Orders service (port 3002)
@@ -116,6 +152,7 @@ Exemple de corps:
 ### Notifications service (port 3001)
 
 - `GET /v1/notifications/info` — informations sur le service
+- `GET /v1/notifications/` — retourne les notifications récentes (`?limit=` optionnel)
 
 > Consomme `order-created` et `delivery-updated`, puis stocke l'état d'envoi dans PostgreSQL (`pending` / `sent` / `failed`).
 

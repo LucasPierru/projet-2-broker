@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Store UI - Logs</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <div class="container">
+      <header>
+        <h1>Analytics & Notifications Logs</h1>
+        <p class="subtitle">Inspect recent events from analytics and notifications services.</p>
+        <nav>
+          <a href="./index.html">Products</a>
+          <a href="./orders.html">Orders & Delivery</a>
+          <a href="./logs.html">Logs</a>
+        </nav>
+      </header>
+
+      <section class="card">
+        <div class="row">
+          <div class="field" style="max-width: 180px">
+            <label for="limit">Limit</label>
+            <input id="limit" type="number" min="1" max="200" value="20" />
+          </div>
+          <div class="field" style="max-width: 220px">
+            <button id="refreshLogsBtn">Refresh logs</button>
+          </div>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>Analytics logs</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>Created At</th>
+              <th>Event</th>
+              <th>Source</th>
+              <th>Payload</th>
+            </tr>
+          </thead>
+          <tbody id="analyticsTableBody">
+            <tr>
+              <td colspan="4">No logs loaded.</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section class="card">
+        <h2>Notifications logs</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>Created At</th>
+              <th>Event</th>
+              <th>Status</th>
+              <th>Attempts</th>
+              <th>Payload</th>
+            </tr>
+          </thead>
+          <tbody id="notificationsTableBody">
+            <tr>
+              <td colspan="5">No logs loaded.</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section class="card">
+        <h2>API response</h2>
+        <pre id="apiOutput">No action yet.</pre>
+      </section>
+    </div>
+
+    <script src="./logs.js" type="module"></script>
+  </body>
+</html>

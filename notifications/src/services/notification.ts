@@ -92,3 +92,27 @@ export const handleNotificationEvent = async (
 
   await attemptDelivery(db, notification);
 };
+
+export const listRecentNotifications = async (db: DbClient, limit = 50) => {
+  const safeLimit = Number.isFinite(limit) && limit > 0 ? Math.min(limit, 200) : 50;
+
+  const { rows } = await db.query(
+    `SELECT
+      id,
+      event_type,
+      payload,
+      status,
+      attempts,
+      last_error,
+      next_retry_at,
+      sent_at,
+      created_at,
+      updated_at
+     FROM notifications
+     ORDER BY created_at DESC
+     LIMIT $1`,
+    [safeLimit]
+  );
+
+  return rows;
+};

@@ -45,6 +45,7 @@ export const getOrderDelivery = async (
 ) => {
   const { rows } = await db.query(
     `SELECT
+        deliveries.id,
         deliveries.order_id,
         deliveries.status,
         deliveries.carrier,
